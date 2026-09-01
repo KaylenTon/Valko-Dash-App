@@ -16,18 +16,23 @@ keywords = [
     "werewolves"
 ]
 
-base_url = "https://arctic-shift.photon-reddit.com/search"
+base_url = "https://arctic-shift.photon-reddit.com/api/posts/search"
+
 headers = {
-    "Authorization": "Bearer YOUR_API_KEY",  # Replace with your actual API key
-    "Content-Type": "application/json"
+    "accept": "application/json"
 }
+
 params = {
     'subreddit' : 'loveanddeepspace',
     'after' : '2026-06-22',
     'before' : '2026-07-12',
-    'limit' : 1,
+    'limit' : 3,
     'sort' : 'asc',
-    'fields' : '',
+    'fields' : ['author', 'author_flair_text', 'created_utc', 'id', 'retrieved_on', 'subreddit', 'subreddit_id', 'link_flair_text', 'num_comments', 'title', 'url'],
     'format' : 'json',
     'query' : 'valko'
 }
+
+response = requests.get(base_url, headers=headers, params=params)
+print(response.status_code)
+print(response.text)
