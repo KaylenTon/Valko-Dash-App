@@ -1,4 +1,5 @@
 import requests
+import time
 
 # Collecting Valko-related Reddit posts and comments (via Arctic Redshift API) for analysis - storing into Postgres database
 
@@ -26,9 +27,9 @@ params = {
     'subreddit' : 'loveanddeepspace',
     'after' : '2026-06-22',
     'before' : '2026-07-12',
-    'limit' : 3,
+    'limit' : 1,
     'sort' : 'asc',
-    'fields' : ['author', 'author_flair_text', 'created_utc', 'id', 'retrieved_on', 'subreddit', 'subreddit_id', 'link_flair_text', 'num_comments', 'title', 'url'],
+    #'fields' : ['author', 'author_flair_text', 'created_utc', 'id', 'retrieved_on', 'subreddit', 'subreddit_id', #'link_flair_text', 'num_comments', 'title', 'url'],
     'format' : 'json',
     'query' : 'valko'
 }
@@ -36,3 +37,4 @@ params = {
 response = requests.get(base_url, headers=headers, params=params)
 print(response.status_code)
 print(response.text)
+time.sleep(1)
