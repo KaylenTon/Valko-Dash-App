@@ -2,6 +2,7 @@ import requests
 import time
 import datetime
 from datetime import datetime, timezone
+import pandas as pd
 
 headers = {
     "accept": "application/json"
@@ -141,6 +142,9 @@ def get_comments_for_post(post_id):
 if __name__ == '__main__':
     posts = get_matching_posts(keywords, 'loveanddeepspace', '2026-06-22', '2026-06-23')
     print(f"Found {len(posts)} matching posts")
+    post_df = pd.DataFrame(posts)
+    print(post_df.head(30))
+    post_df.to_csv("valko_posts.csv", index=False)
 
     all_comments = []
     for i, post in enumerate(posts, start=1):
@@ -150,3 +154,6 @@ if __name__ == '__main__':
         time.sleep(REQUEST_DELAY)
 
     print(f"Total comments: {len(all_comments)}")
+    comment_df = pd.DataFrame(all_comments)
+    print(comment_df.head(30))
+    comment_df.to_csv("valko_comments.csv", index=False)
