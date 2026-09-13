@@ -10,6 +10,48 @@ headers = {
 
 posts_url = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
+post_fields = [
+    'id',
+    'created_utc',
+    'title',
+    'is_self',
+    'score', # posts' net score (upvotes - downvotes)
+    'ups', # total number of upvotes
+    'upvote_ratio', # ratio of upvotes to total votes; ex: .89 means about 89% of votes are upvotes
+    'author',
+    'author_flair_text',
+    'location_lat',
+    'location_long',
+    'location_name',
+    'category',
+    'link_flair_text',
+    'is_video',
+    'media',
+    'num_comments',
+    'num_crossposts',
+    'num_reports',
+    'over_18',
+    'selftext',
+    'thumbnail',
+    'url',
+    'subreddit'
+]
+
+comments_fields = [
+    'id',
+    'link_id',
+    'parent_id',
+    'created_utc',
+    'author',
+    'author_flair_text',
+    'body',
+    'score', # comments' net score (upvotes - downvotes)
+    'ups', # total number of upvotes
+    'downs', # total number of downvotes
+    'permalink',
+    'subreddit'
+]
+
 comments_url = "https://arctic-shift.photon-reddit.com/api/comments/search"
 
 RETRY_DELAY = 5
@@ -88,7 +130,7 @@ def daterange_chunks(after_epoch, before_epoch, chunk_seconds=CHUNK_SECONDS):
         yield start, end
         start = end
 
-def get_matching_posts(keyword, subreddit, after_date, before_date):
+def get_posts(keyword, subreddit, after_date, before_date):
 
     after_epoch = to_epoch(after_date)
     before_epoch = to_epoch(before_date)
@@ -125,7 +167,7 @@ def get_matching_posts(keyword, subreddit, after_date, before_date):
 
     return list(matched.values())
 
-def get_comments_for_post(post_id):
+def get_comments(post_id):
     params = {
         'link_id': f't3_{post_id}',
         'limit': 100,
@@ -140,20 +182,20 @@ def get_comments_for_post(post_id):
     )
 
 if __name__ == '__main__':
-    posts = get_matching_posts(keywords, 'loveanddeepspace', '2026-06-22', '2026-06-23')
-    print(f"Found {len(posts)} matching posts")
-    post_df = pd.DataFrame(posts)
-    print(post_df.head(30))
+    posts = get_posts(keywords, 'loveanddeepspace', '2026-06-22', '2026-06-23')
+    print(f"Found {len(posts)} posts")
+    post_df = pd.DataFrame(posts)[post_fields]
+    print(post_df.head(10))
     post_df.to_csv("valko_posts.csv", index=False)
 
     all_comments = []
     for i, post in enumerate(posts, start=1):
-        comments = get_comments_for_post(post['id'])
+        comments = get_comments(post['id'])
         all_comments.extend(comments)
         print(f"post {i}/{len(posts)} {post['id']}: {len(comments)} comments (total comments so far: {len(all_comments)})")
         time.sleep(REQUEST_DELAY)
 
     print(f"Total comments: {len(all_comments)}")
-    comment_df = pd.DataFrame(all_comments)
-    print(comment_df.head(30))
+    comment_df = pd.DataFrame(all_comments)[comments_fields]
+    print(comment_df.head(10))
     comment_df.to_csv("valko_comments.csv", index=False)
