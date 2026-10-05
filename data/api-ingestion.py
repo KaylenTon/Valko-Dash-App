@@ -3,6 +3,7 @@ import time
 import datetime
 from datetime import datetime, timezone
 import pandas as pd
+from database import get_connection, clean_post, clean_comments, insert_post, insert_comments
 
 headers = {
     "accept": "application/json"
@@ -10,7 +11,7 @@ headers = {
 
 posts_url = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
-post_fields = [
+posts_fields = [
     'id',
     'created_utc',
     'title',
@@ -58,7 +59,7 @@ RETRY_DELAY = 5
 MAX_RETRIES = 8
 REQUEST_DELAY = 1
 
-keywords = "valko"
+keyword = "valko"
 
 def paginate(url, params, until_epoch=None, label=""):
     params = dict(params)
@@ -135,7 +136,7 @@ def get_posts(keyword, subreddit, after_date, before_date):
     after_epoch = to_epoch(after_date)
     before_epoch = to_epoch(before_date)
 
-    matched = {}
+    posts_retrieved = {}
 
     for chunk_after, chunk_before in daterange_chunks(after_epoch, before_epoch):
         chunk_start = datetime.fromtimestamp(chunk_after, tz=timezone.utc)
@@ -159,13 +160,13 @@ def get_posts(keyword, subreddit, after_date, before_date):
         )
 
         for post in posts:
-            matched[post['id']] = post
+            posts_retrieved[post['id']] = post
 
-        print(f"--- chunk done: {len(matched)} unique posts found so far ---")
+        print(f"--- chunk done: {len(posts_retrieved)} unique posts found so far ---")
 
         time.sleep(REQUEST_DELAY)
 
-    return list(matched.values())
+    return list(posts_retrieved.values())
 
 def get_comments(post_id):
     params = {
@@ -182,20 +183,16 @@ def get_comments(post_id):
     )
 
 if __name__ == '__main__':
-    posts = get_posts(keywords, 'loveanddeepspace', '2026-06-22', '2026-06-23')
-    print(f"Found {len(posts)} posts")
-    post_df = pd.DataFrame(posts)[post_fields]
-    print(post_df.head(10))
-    post_df.to_csv("valko_posts.csv", index=False)
+    conn = get_connection()
 
-    all_comments = []
-    for i, post in enumerate(posts, start=1):
-        comments = get_comments(post['id'])
-        all_comments.extend(comments)
-        print(f"post {i}/{len(posts)} {post['id']}: {len(comments)} comments (total comments so far: {len(all_comments)})")
+    all_posts = get_posts(keyword, 'loveanddeepspace', '2026-06-22', '2026-07-12')
+    print(f"Found {len(all_posts)} posts")
+
+    for i, post in enumerate(all_posts, start=1):
+        insert_post(conn, clean_post(post))
+
+        raw_comments = get_comments(post['id'])
+        insert_comments(conn, clean_comments(raw_comments))
+
+        print(f"post {i}/{len(all_posts)} {post['id']}: {len(raw_comments)} comments inserted")
         time.sleep(REQUEST_DELAY)
-
-    print(f"Total comments: {len(all_comments)}")
-    comment_df = pd.DataFrame(all_comments)[comments_fields]
-    print(comment_df.head(10))
-    comment_df.to_csv("valko_comments.csv", index=False)
