@@ -55,9 +55,9 @@ comments_fields = [
 
 comments_url = "https://arctic-shift.photon-reddit.com/api/comments/search"
 
-RETRY_DELAY = 5
-MAX_RETRIES = 8
-REQUEST_DELAY = 1
+RETRY_DELAY = 3
+MAX_RETRIES = 12
+REQUEST_DELAY = 2
 
 keyword = "valko"
 
@@ -122,7 +122,7 @@ def to_epoch(date_str):
         .timestamp()
     )
 
-CHUNK_SECONDS = 5 * 24 * 3600  # 5 days — keeps each search call cheap enough to avoid timeouts
+CHUNK_SECONDS = 1 * 24 * 3600  # 1 day — keeps each search call cheap AND gives frequent insert checkpoints
 
 def daterange_chunks(after_epoch, before_epoch, chunk_seconds=CHUNK_SECONDS):
     start = after_epoch
@@ -131,12 +131,10 @@ def daterange_chunks(after_epoch, before_epoch, chunk_seconds=CHUNK_SECONDS):
         yield start, end
         start = end
 
-def get_posts(keyword, subreddit, after_date, before_date):
+def collect_and_store(keyword, subreddit, after_date, before_date, conn):
 
     after_epoch = to_epoch(after_date)
     before_epoch = to_epoch(before_date)
-
-    posts_retrieved = {}
 
     for chunk_after, chunk_before in daterange_chunks(after_epoch, before_epoch):
         chunk_start = datetime.fromtimestamp(chunk_after, tz=timezone.utc)
@@ -152,21 +150,20 @@ def get_posts(keyword, subreddit, after_date, before_date):
             'query': keyword
         }
 
-        posts = paginate(
-            posts_url,
-            params,
-            until_epoch=chunk_before,
-            label="posts"
-        )
+        day_posts = {}
+        for post in paginate(posts_url, params, until_epoch=chunk_before, label="posts"):
+            day_posts[post['id']] = post
 
-        for post in posts:
-            posts_retrieved[post['id']] = post
+        for i, post in enumerate(day_posts.values(), start=1):
+            insert_post(conn, clean_post(post))
 
-        print(f"--- chunk done: {len(posts_retrieved)} unique posts found so far ---")
+            raw_comments = get_comments(post['id'])
+            insert_comments(conn, clean_comments(raw_comments))
 
-        time.sleep(REQUEST_DELAY)
+            print(f"post {i}/{len(day_posts)} {post['id']}: {len(raw_comments)} comments inserted")
+            time.sleep(REQUEST_DELAY)
 
-    return list(posts_retrieved.values())
+        print(f"--- day done: {len(day_posts)} posts inserted ---")
 
 def get_comments(post_id):
     params = {
@@ -184,15 +181,4 @@ def get_comments(post_id):
 
 if __name__ == '__main__':
     conn = get_connection()
-
-    all_posts = get_posts(keyword, 'loveanddeepspace', '2026-06-22', '2026-07-12')
-    print(f"Found {len(all_posts)} posts")
-
-    for i, post in enumerate(all_posts, start=1):
-        insert_post(conn, clean_post(post))
-
-        raw_comments = get_comments(post['id'])
-        insert_comments(conn, clean_comments(raw_comments))
-
-        print(f"post {i}/{len(all_posts)} {post['id']}: {len(raw_comments)} comments inserted")
-        time.sleep(REQUEST_DELAY)
+    collect_and_store(keyword, 'loveanddeepspace', '2026-06-24', '2026-10-22', conn)
