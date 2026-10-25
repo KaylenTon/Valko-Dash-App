@@ -60,6 +60,7 @@ MAX_RETRIES = 12
 REQUEST_DELAY = 2
 
 keyword = "valko"
+subreddit = "loveanddeepspace"
 
 def paginate(url, params, until_epoch=None, label=""):
     params = dict(params)
@@ -131,7 +132,7 @@ def daterange_chunks(after_epoch, before_epoch, chunk_seconds=CHUNK_SECONDS):
         yield start, end
         start = end
 
-def collect_and_store(keyword, subreddit, after_date, before_date, conn):
+def collect_and_store(after_date, before_date, conn, **search_params):
 
     after_epoch = to_epoch(after_date)
     before_epoch = to_epoch(before_date)
@@ -147,7 +148,7 @@ def collect_and_store(keyword, subreddit, after_date, before_date, conn):
             'before': chunk_before,
             'limit': 100,
             'sort': 'asc',
-            'query': keyword
+            **search_params,
         }
 
         day_posts = {}
@@ -181,4 +182,5 @@ def get_comments(post_id):
 
 if __name__ == '__main__':
     conn = get_connection()
-    collect_and_store(keyword, 'loveanddeepspace', '2026-06-24', '2026-10-22', conn)
+    collect_and_store('2026-06-22', '2026-10-23', conn, query=keyword)
+    collect_and_store('2026-06-22', '2026-10-23', conn, link_flair_text='Official Media')
